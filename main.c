@@ -5,7 +5,9 @@
 // Struct untuk menyimpan data pasien
 typedef struct
 {
-    char name[50]; // Nama pasien
+    char name[50];    // Nama pasien
+    int number;       // Nomor urut pasien
+    char service[50]; // Layanan yang dipilih
 } Patient;
 
 // Struct untuk merepresentasikan queue
@@ -13,7 +15,7 @@ typedef struct
 {
     int front, rear;
     int capacity;
-    Patient *queue; // Pointer ke array pasien
+    Patient *queue; // Pointer ke array pasien yang dialokasikan secara dinamis
 } Queue;
 
 // Struct untuk menyimpan daftar pasien yang telah didaftarkan secara dinamis
@@ -24,7 +26,9 @@ typedef struct
     Patient *patients; // Pointer ke array pasien terdaftar
 } RegisteredList;
 
-// Fungsi untuk menginisialisasi antrian dengan kapasitas awal
+int patientCounter = 0; // untuk no pasien
+
+// Fungsi untuk menginisialisasi antrian
 void initializeQueue(Queue *q, int capacity)
 {
     q->capacity = capacity;
@@ -33,7 +37,7 @@ void initializeQueue(Queue *q, int capacity)
     q->queue = (Patient *)malloc(capacity * sizeof(Patient)); // Alokasi memori
 }
 
-// Fungsi untuk menginisialisasi daftar pasien terdaftar secara dinamis
+// Fungsi untuk menginisialisasi daftar pasien terdaftar
 void initializeRegisteredList(RegisteredList *list, int capacity)
 {
     list->total = 0;
@@ -54,7 +58,7 @@ int isEmpty(Queue *q)
 }
 
 // Fungsi untuk menambahkan pasien ke antrian
-void enqueue(Queue *q, RegisteredList *list, char name[])
+void enqueue(Queue *q, RegisteredList *list, char name[], char service[])
 {
     if (isFull(q))
     {
@@ -68,8 +72,13 @@ void enqueue(Queue *q, RegisteredList *list, char name[])
         q->front = 0;
     }
     q->rear++;
+
+    // Tambahkan pasien ke antrian
+    patientCounter++; // Tambah nomor urut pasien
     strcpy(q->queue[q->rear].name, name);
-    printf("Pasien %s berhasil didaftarkan.\n", name);
+    strcpy(q->queue[q->rear].service, service); // Tetapkan layanan dokter
+    q->queue[q->rear].number = patientCounter;  // Tetapkan nomor urut pasien
+    printf("Pasien %s (Nomor %d, Layanan: %s) berhasil didaftarkan.\n", name, patientCounter, service);
 
     // Tambahkan pasien ke daftar pasien terdaftar
     if (list->total == list->capacity)
@@ -79,6 +88,8 @@ void enqueue(Queue *q, RegisteredList *list, char name[])
         list->capacity = newCapacity;
     }
     strcpy(list->patients[list->total].name, name);
+    strcpy(list->patients[list->total].service, service); // Tetapkan layanan dokter di daftar terdaftar
+    list->patients[list->total].number = patientCounter;  // Tetapkan nomor urut pasien
     list->total++;
 }
 
@@ -90,7 +101,8 @@ void dequeue(Queue *q)
         printf("Antrian kosong! Tidak ada pasien yang bisa diproses.\n");
         return;
     }
-    printf("Pasien %s diproses untuk pendaftaran.\n", q->queue[q->front].name);
+    printf("Nomor %d, %s Silahkan menuju %s.\n",
+           q->queue[q->front].number, q->queue[q->front].name, q->queue[q->front].service);
     q->front++;
 
     // Reset antrian jika semua pasien telah diproses
@@ -101,7 +113,7 @@ void dequeue(Queue *q)
     }
 }
 
-// Fungsi untuk menampilkan isi antrian saat ini
+// Fungsi menampilkan isi antrian saat ini
 void displayQueue(Queue *q)
 {
     if (isEmpty(q))
@@ -112,11 +124,12 @@ void displayQueue(Queue *q)
     printf("Antrian Pendaftaran Pasien:\n");
     for (int i = q->front; i <= q->rear; i++)
     {
-        printf("%d. %s\n", i + 1, q->queue[i].name);
+        printf("Nomor %d, Nama: %s, Layanan: %s\n",
+               q->queue[i].number, q->queue[i].name, q->queue[i].service);
     }
 }
 
-// Fungsi untuk menampilkan daftar semua pasien yang telah didaftarkan
+// Fungsi tampilkan daftar pasien yang terdaftar
 void displayRegisteredPatients(RegisteredList *list)
 {
     if (list->total == 0)
@@ -127,17 +140,17 @@ void displayRegisteredPatients(RegisteredList *list)
     printf("Daftar Semua Pasien yang Telah Didaftarkan:\n");
     for (int i = 0; i < list->total; i++)
     {
-        printf("%d. %s\n", i + 1, list->patients[i].name);
+        printf("Nomor %d, Nama: %s, Layanan: %s\n", list->patients[i].number, list->patients[i].name, list->patients[i].service);
     }
 }
 
-// Fungsi untuk membebaskan memori antrian
+// Fungsi bebaskan memori antrian
 void freeQueue(Queue *q)
 {
     free(q->queue);
 }
 
-// Fungsi untuk membebaskan memori daftar pasien terdaftar
+// Fungsi bebaskan daftar pasien
 void freeRegisteredList(RegisteredList *list)
 {
     free(list->patients);
@@ -154,8 +167,10 @@ int main()
 
     int choice;
     char name[50];
+    int serviceChoice;
+    char service[50];
 
-    // Menu interaktif
+    // Menu Utama
     do
     {
         printf("\nMenu Pendaftaran Pasien:\n");
@@ -170,18 +185,52 @@ int main()
         switch (choice)
         {
         case 1:
+            getchar(); // Membersihkan buffer input agar tidak ada masalah dengan input nama
             printf("Masukkan nama pasien: ");
-            scanf("%s", name);
-            enqueue(&q, &list, name); // Tambahkan ke antrian dan daftar pasien terdaftar
+            fgets(name, sizeof(name), stdin);
+            name[strcspn(name, "\n")] = 0; // Hapus karakter newline dari input
+
+            printf("Pilih layanan dokter:\n");
+            printf("1. Poliklinik Umum\n");
+            printf("2. Poliklinik Penyakit Dalam\n");
+            printf("3. Poliklinik Gigi\n");
+            printf("4. Poliklinik Anak\n");
+            printf("5. Poliklinik THT\n");
+            printf("Pilihan layanan: ");
+            scanf("%d", &serviceChoice);
+
+            switch (serviceChoice)
+            {
+            case 1:
+                strcpy(service, "Poliklinik Umum");
+                break;
+            case 2:
+                strcpy(service, "Poliklinik Penyakit Dalam");
+                break;
+            case 3:
+                strcpy(service, "Poliklinik Gigi");
+                break;
+            case 4:
+                strcpy(service, "Poliklinik Anak");
+                break;
+            case 5:
+                strcpy(service, "Poliklinik THT");
+                break;
+            default:
+                printf("Pilihan tidak valid.\n");
+                continue;
+            }
+
+            enqueue(&q, &list, name, service); // Tambahkan ke antrian dan daftar pasien
             break;
         case 2:
-            dequeue(&q);
+            dequeue(&q); // Proses Antrian
             break;
         case 3:
-            displayQueue(&q);
+            displayQueue(&q); // Tampilkan Antrian
             break;
         case 4:
-            displayRegisteredPatients(&list);
+            displayRegisteredPatients(&list); // Tampilkan Daftar Pasien
             break;
         case 5:
             printf("Keluar dari program.\n");
